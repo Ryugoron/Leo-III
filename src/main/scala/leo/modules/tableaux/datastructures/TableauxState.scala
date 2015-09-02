@@ -24,6 +24,7 @@ object TableauxState extends DataStore {
    * Returns all Formulas of the node Identifier from the root of the Tableaux Tree right to the next split.
    */
   def getBranch(nodeIdentifier: NodeIdentifier) : Set[TableauxFormula] = getBranch(nodeIdentifier.id)
+
   /**
    * Returns all Formulas of the node Identifier from the root of the Tableaux Tree right to the next split.
    */
@@ -55,6 +56,16 @@ object TableauxState extends DataStore {
     false
   }
 
+  def getNodeIdentifier(n : Int) : Option[NodeIdentifier] = tree.get(n)
+
+  def getLeaveIdentifier(n : NodeIdentifier) : Set[NodeIdentifier] = {
+    if(n.leaf) Set(n)
+    else {
+      getLeaveIdentifier(n.left) ++ getLeaveIdentifier(n.right)
+    }
+  }
+
+  def getLeaveIdentifier(n : Int) : Set[NodeIdentifier] = getNodeIdentifier(n).fold(Set() : Set[NodeIdentifier])(getLeaveIdentifier(_))
 
 
   override def update(o: Any, n: Any): Boolean = (o,n) match {
@@ -68,7 +79,12 @@ object TableauxState extends DataStore {
         leo.Out.warn("CHANGED THE IDENTIFIER OF A NODE.")
         return false
       }
-      tree.put(nn.id, nn)
+      tree.get(nn.id).map{node =>
+        // Updating left and right.
+        val treeNode = node.asInstanceOf[TreeNodeIdentfier]
+        treeNode.left = nn.left
+        treeNode.right = nn.right
+      }
       true
     case _ => false
   }
