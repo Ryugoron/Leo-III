@@ -19,7 +19,7 @@ import scala.collection.concurrent.TrieMap
  */
 object DeltaRulaAgent extends Agent{
   override def name: String = "delta_rule"
-  override val interest = Seq(TableauxFormulaType)
+  override val interest = Some(Seq(TableauxFormulaType))
 
   // Stores the amount of applications of the Delta rule, to allow the bid of new formulas to be higher.
   private[agents] val appAmount : TrieMap[TableauxFormula, Int] = new TrieMap[TableauxFormula, Int]()

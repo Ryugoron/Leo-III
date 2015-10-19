@@ -253,7 +253,10 @@ protected[scheduler] class SchedulerImpl (numberOfThreads : Int) extends Schedul
       LockSet.releaseTask(task)
       curExec.remove(task)
       val lockCount = if(doneSmth) ActiveTracker.decAndGet(s"Finished Task : ${task.pretty}") else ActiveTracker.decAndGet()
-      if(lockCount <= 0) Blackboard().forceCheck()
+      if(lockCount <= 0) {
+        task.finish()
+        Blackboard().forceCheck()
+      }
       Scheduler().signal()  // Get new task
       work = false
       Blackboard().forceCheck()
@@ -279,8 +282,10 @@ protected[scheduler] class SchedulerImpl (numberOfThreads : Int) extends Schedul
 
       a.filter(DataEvent(newD,t))
 
-      if(ActiveTracker.decAndGet(s"Done Filtering data (${newD})\n\t\tin Agent ${a.name}") <= 0)
+      if(ActiveTracker.decAndGet(s"Done Filtering data (${newD})\n\t\tin Agent ${a.name}") <= 0) {
+        task.finish()
         Blackboard().forceCheck()
+      }
       //Release sync
     }
   }

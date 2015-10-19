@@ -16,11 +16,11 @@ import leo.agents.{Task, Agent}
  */
 object GammaRuleAgent extends Agent{
   override def name: String = "gamma_rule"
-  override val interest = Seq(TableauxFormulaType)
+  override val interest = Some(Seq(TableauxFormulaType))
 
   override def run(t: Task): Result = t match {
-    case BetaRuleTask(old, newFs) =>
-      newFs.foldLeft(Result()){(r,f) => r.insert(TableauxFormulaType)(f)}
+    case GammaRuleTask(old, newF) =>
+      Result().insert(TableauxFormulaType)(newF)
     case _ => Result()
   }
 

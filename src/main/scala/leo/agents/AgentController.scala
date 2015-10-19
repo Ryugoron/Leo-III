@@ -105,4 +105,17 @@ abstract class AgentController(a : Agent) {
    * Removes all Tasks
    */
   def clearTasks() : Unit
+
+  /**
+   * <p>
+   * This method is called after a task is run and
+   * all filter where applied sucessfully
+   * </p>
+   * <p>
+   * The Method is standard implemented as the empty Instruction.
+   * </p>
+   *
+   * @param t The comletely finished task
+   */
+  def taskFinished(t : Task) : Unit = {}
 }

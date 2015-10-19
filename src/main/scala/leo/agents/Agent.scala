@@ -164,4 +164,20 @@ abstract class Task extends Pretty {
    * @return - Possible profit, if the task is executed
    */
   def bid(budget : Double) : Double
+
+
+  var controller : AgentController = null
+  def setController(a : AgentController) : Task = {controller = a; this}
+  /**
+   * <p>
+   * This method is called, whenever the task is
+   * completely run and all resulting filtering has been done.
+   * And results in a call to the defined AgentController
+   * </p>
+   *
+   * <p>
+   * The method is mostly empty.
+   * </p>
+   */
+  def finish() : Unit = if(controller != null) controller.taskFinished(this)
 }

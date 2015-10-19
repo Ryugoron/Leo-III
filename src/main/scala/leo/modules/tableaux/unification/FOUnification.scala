@@ -15,25 +15,25 @@ object FOUnification {
   /**
    * Computes the most general unifier, if one exists.
    */
-  def apply(t1 : Term)(t2 : Term) : Option[Subst] = (t1,t2) match {
+  def apply(t1 : Term)(t2 : Term) : Option[Map[Int, Term]] = (t1,t2) match {
     case (===(s1,t1), ===(s2,t2)) =>  // Handeling equality explicitly
-      apply(s1)(s2).fold(None : Option[Subst]){sub => apply(t1.substitute(sub).betaNormalize)(t2.substitute(sub).betaNormalize).map(newsub => sub.comp(newsub))}
-    case (MetaVar(m1), MetaVar(m2)) => //Both are meta variables, hence unifiable
-        Some(Subst.id)
+      apply(s1)(s2).fold(None : Option[Map[Int,Term]]){sub => apply(t1.substitute(Subst.fromMap(sub)).betaNormalize)(t2.substitute(Subst.fromMap(sub)).betaNormalize).map(newsub => sub ++ newsub)}
+    case (MetaVar(ty1,m1), MetaVar(ty2,m2)) => //Both are meta variables, hence unifiable
+        if(m1 == m2) Some(Map()) else Some(Map(m1 -> t2))
     case (MetaVar(t, i),t2) => // If the left hand side is a meta variable.
       if(t2.metaVars.contains((t,i)))
         None
       else
-        Some(Subst.singleton(i, t2))
+        Some(Map(i -> t2))
     case (t1, MetaVar(t, i)) => // If the left hand side is a meta variable.
       if(t1.metaVars.contains((t,i)))
         None
       else
-        Some(Subst.singleton(i, t1))
+        Some(Map(i -> t1))
     case (hd1 ∙ tail1, hd2 ∙ tail2) => // Both terms are not meta variables
       if(hd1 != hd2 || tail1.length != tail2.length) None
       else {
-        tail1.zip(tail2).foldLeft(Some(Subst.id) : Option[Subst])(handleList)
+        tail1.zip(tail2).foldLeft(Some(Map.empty) : Option[Map[Int, Term]])(handleList)
 
       }
     case (ty1 :::> t1, ty2 :::> t2) => // Both are abstractions, in normal case this should never happen.
@@ -41,9 +41,9 @@ object FOUnification {
     case _ => None
   }
 
-  private def handleList(osub : Option[Subst], ts: (Either[Term, Type], Either[Term, Type])) : Option[Subst] =
+  private def handleList(osub : Option[Map[Int, Term]], ts: (Either[Term, Type], Either[Term, Type])) : Option[Map[Int, Term]] =
     ts match {
-      case (Left(t1),Left(t2)) => osub.fold(None : Option[Subst]){sub => apply(t1.substitute(sub).betaNormalize)(t2.substitute(sub).betaNormalize).map{newsub => sub.comp(newsub)}}
+      case (Left(t1),Left(t2)) => osub.fold(None : Option[Map[Int, Term]]){sub => apply(t1.substitute(Subst.fromMap(sub)).betaNormalize)(t2.substitute(Subst.fromMap(sub)).betaNormalize).map{newsub => sub ++ newsub}}
       case _ => None
     }
 }

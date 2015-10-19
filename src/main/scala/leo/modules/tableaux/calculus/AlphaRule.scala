@@ -13,8 +13,8 @@ object AlphaRule {
   def apply(t : Term) : Option[Seq[Term]] = t match {
     case &(t1, t2) => Some(List(t1,t2))
     case Not(|||(t1, t2)) => Some(List(Not(t1),Not(t2)))
-    case Not(Not(t1)) => ???
-    case Not(LitTrue) => Some(List(LitFalse))
-    case Not(LitFalse) => Some(List(LitTrue))
+    case Not(Not(t1)) => Some(List(t1))
+    case Not(LitTrue()) => Some(List(LitFalse()))
+    case Not(LitFalse()) => Some(List(LitTrue()))
   }
 }

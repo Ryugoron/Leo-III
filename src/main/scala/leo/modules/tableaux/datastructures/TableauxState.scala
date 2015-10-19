@@ -108,7 +108,7 @@ object TableauxState extends DataStore {
     closed.clear()
     tree.clear()
   }
-  override protected[blackboard] def all(t: DataType): Set[Any] = t match {
+  override def all(t: DataType): Set[Any] = t match {
     case TableauxFormulaType => state.values.foldLeft(Set():Set[TableauxFormula]){case (seta, setb) => seta & setb}.asInstanceOf[Set[Any]]
     case _ => Set()
   }
@@ -136,6 +136,12 @@ trait NodeIdentifier extends Pretty {
    * @return
    */
   def split : (NodeIdentifier, NodeIdentifier, NodeIdentifier)
+
+  /**
+   * Returns the depth of the node.
+   * @return the depth
+   */
+  def depth : Int
 }
 
 object NodeIdentifier {
@@ -159,6 +165,16 @@ private[datastructures] class TreeNodeIdentfier(val id : Int) extends NodeIdenti
     (t, l,r)
   }
 
+
+  override val depth = {
+    var i = 1
+    var idn = id
+    while(idn > 0){
+      idn = idn >> 1
+      i += 1
+    }
+    i
+  }
 }
 
 case object TableauxTreeType extends DataType

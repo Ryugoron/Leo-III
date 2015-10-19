@@ -17,7 +17,7 @@ import leo.agents.{Task, Agent}
  */
 object AlphaRuleAgent extends Agent{
   override def name: String = "beta_rule"
-  override val interest = Seq(TableauxFormulaType)
+  override val interest = Some(Seq(TableauxFormulaType))
 
   override def run(t: Task): Result = t match {
     case AlphaRuleTask(old, newFs) =>

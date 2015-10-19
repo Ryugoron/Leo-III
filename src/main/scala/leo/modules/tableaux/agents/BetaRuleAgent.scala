@@ -19,7 +19,7 @@ import scala.collection.concurrent.TrieMap
  */
 object BetaRuleAgent extends Agent{
   override def name: String = "alpha_rule"
-  override val interest = Seq(TableauxFormulaType, TableauxTreeType)
+  override val interest = Some(Seq(TableauxFormulaType, TableauxTreeType))
 
   //TODO Either this is a good option to deal with the problem, or find a generic solution
   // Stores the split causes, hence we can collect which alpha splits already happend
