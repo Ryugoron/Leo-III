@@ -268,8 +268,8 @@ object ParallelMain {
       leo.Out.debug(s"\nUnify :\n ${graph.unifySet.get(graph.Normalize).map(_.pretty(sig)).mkString("\n  ")}")
 
       printSZSAndProof(state, time, time - phase.parsingTime)
-//      scheduler.info()
-//      blackboard.info()
+      scheduler.info()
+      blackboard.info()
     } finally {
       if(!TimeOutProcess.isFinished)
         TimeOutProcess.killOnly()
