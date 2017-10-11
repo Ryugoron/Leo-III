@@ -30,6 +30,7 @@ object Configuration extends DefaultConfiguration {
   private val PARAM_UNIFIERCOUNT = "unifiers"
   private val PARAM_MATCHINGDEPTH = "matchingdepth"
   private val PARAM_PRIMSUBST = "primsubst"
+  private val PARAM_RESTRICTUNIATTEMPTS = "restrict-uni-attempts"
   private val PARAM_PRE_PRIMSUBST = "instantiate"
   private val PARAM_PRE_PRIMSUBST_MAXDEPTH = "instantiate-maxdepth"
   private val PARAM_FUNCSPEC = "funcspec"
@@ -38,7 +39,6 @@ object Configuration extends DefaultConfiguration {
   private val PARAM_AGING = "aging"
   private val PARAM_NOCHOICE = "nochoice"
   private val PARAM_NOAXIOMSELECTION = "noaxiomselection"
-  private val PARAM_ATPCHECKINTERVAL = "atp-check-interval"
   private val PARAM_ATPCALLINTERVAL = "atp-call-interval"
   private val PARAM_ATPMAXJOBS = "atp-max-jobs"
   private val RENAMING = "renaming"
@@ -153,18 +153,36 @@ object Configuration extends DefaultConfiguration {
   lazy val PRE_PRIMSUBST_LEVEL: Int = uniqueIntFor(PARAM_PRE_PRIMSUBST, DEFAULT_PRE_PRIMSUBST)
   lazy val PRE_PRIMSUBST_MAX_DEPTH: Int = uniqueIntFor(PARAM_PRE_PRIMSUBST_MAXDEPTH, DEFAULT_PRE_PRIMSUBST_MAXDEPTH)
 
-  lazy val NO_CHOICE: Boolean = isSet(PARAM_NOCHOICE)
+  import leo.modules.calculus.Subsumption
+  lazy val SUBSUMPTION_METHOD: Subsumption = {
+    if (isSet("subsumption")) {
+      val method = valueOf("subsumption").get.head
+      method match {
+        case "ho-pattern" => leo.modules.calculus.HOPatternSubsumption
+        case "trivial" => leo.modules.calculus.TrivialSubsumption
+        case _ => DEFAULT_SUBSUMPTIONMETHOD
+      }
+    } else DEFAULT_SUBSUMPTIONMETHOD
+  }
+
+  lazy val NO_CHOICE: Boolean = isSet(PARAM_NOCHOICE) || !DEFAULT_CHOICE
   lazy val NO_AXIOM_SELECTION: Boolean = isSet(PARAM_NOAXIOMSELECTION)
 
   lazy val SOS: Boolean = isSet(PARAM_SOS_LONG) || isSet(PARAM_SOS_SHORT)
 
+  lazy val RESTRICT_UNI_ATTEMPTS: Boolean = {
+    if (isSet(PARAM_RESTRICTUNIATTEMPTS)) {
+      val input = valueOf(PARAM_RESTRICTUNIATTEMPTS).get.head
+      input match {
+        case "true" => true
+        case "false" => false
+        case _ => DEFAULT_RESTRICTUNIATTEMPTS
+      }
+    } else Configuration.DEFAULT_RESTRICTUNIATTEMPTS
+  }
+
   lazy val COUNTER_SAT : Boolean = isSet(PARAM_COUNTERSAT)
-  import leo.datastructures.{Precedence,ClauseProxyWeights,LiteralWeights}
   lazy val CONSISTENCY_CHECK: Boolean = isSet(PARAM_CONSISTENCYCHECK)
-
-  lazy val CLAUSEPROXY_WEIGHTING: ClauseProxyWeight = ClauseProxyWeights.litCount
-
-  lazy val LITERAL_WEIGHTING: LiteralWeight = LiteralWeights.termsize
 
   lazy val TERM_ORDERING: TermOrdering = {
     if (isSet("ordering")) {
@@ -179,6 +197,7 @@ object Configuration extends DefaultConfiguration {
     }
   }
 
+  import leo.datastructures.Precedence
   lazy val PRECEDENCE: Precedence = Precedence.arityInvOrder
 
   lazy val RENAMING_SET : Boolean = isSet(RENAMING) || DEFAULT_RENAMING
@@ -413,6 +432,7 @@ trait DefaultConfiguration {
   val DEFAULT_MATCHINGDEPTH = 4
   val DEFAULT_UNIFIERCOUNT = 1
   val DEFAULT_PRIMSUBST = 1
+  val DEFAULT_RESTRICTUNIATTEMPTS = true
   val DEFAULT_PRE_PRIMSUBST = -1
   val DEFAULT_PRE_PRIMSUBST_MAXDEPTH = 5
   val DEFAULT_ATPCALLINTERVAL = 15
@@ -420,6 +440,7 @@ trait DefaultConfiguration {
   val DEFAULT_ATPMAXJOBS = 1
   val DEFAULT_PASSMARK = 0.56
   val DEFAULT_AGING = 2.35
+  val DEFAULT_SUBSUMPTIONMETHOD = leo.modules.calculus.HOPatternSubsumption
   val DEFAULT_CHOICE = true
   val DEFAULT_TERMORDERING = leo.datastructures.impl.orderings.TO_CPO_Naive
   val DEFAULT_PAR_SCHED = 3

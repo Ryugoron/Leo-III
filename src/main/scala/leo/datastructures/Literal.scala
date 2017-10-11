@@ -1,7 +1,5 @@
 package leo.datastructures
 
-import leo.Configuration
-
 /**
  * Interface for literals, companion object `Literal` provides constructor methods.
  *
@@ -50,8 +48,8 @@ trait Literal extends Pretty with Prettier {
   /** Returns true iff the equation `s = t` is ground. */
   @inline final lazy val ground: Boolean = left.ground && right.ground
 
-  /** The weight of the literal as determined by the underlying literal weighting. */
-  @inline final lazy val weight: Int = Configuration.LITERAL_WEIGHTING.weightOf(this)
+//  /** The weight of the literal as determined by the underlying literal weighting. */
+//  @inline final lazy val weight: Int = Configuration.LITERAL_WEIGHTING.weightOf(this)
   /** Comparison of two literals using a literal ordering given by (literals `l`,`l'`):
     * `l > l'` iff `mc(l) >>> mc(l')`
     * where `>>>` is the twofold multiset-extension `(((>)mul)mul)` of `>`,
@@ -128,8 +126,8 @@ object Literal {
     * Note that the resulting literal is only
     * equational if both terms t1 and t2 and not equivalent to $true/$false. */
   @inline final def mkOrdered(t1: Term, t2: Term, pol: Boolean)(implicit sig: Signature): Literal = {
-    assert(Term.wellTyped(t1), s"Left side of literal not well-typed: ${t1.pretty(sig)}")
-    assert(Term.wellTyped(t2), s"Right side of literal not well-typed: ${t2.pretty(sig)}")
+//    assert(Term.wellTyped(t1), s"Left side of literal not well-typed: ${t1.pretty(sig)}")
+//    assert(Term.wellTyped(t2), s"Right side of literal not well-typed: ${t2.pretty(sig)}")
 //    assert(t1.ty == t2.ty) //FIXME Commented out for now since this invariant is currently not given
     // but thats not that bad... believe me :)
     LitImpl.mkOrdered(t1,t2,pol)(sig)
@@ -231,8 +229,9 @@ object Literal {
 
   /** Compare two literals of same polarity*/
   private final def cmpSamePol(a: Literal, b: Literal)(sig: Signature): CMP_Result = {
-    assert(a.polarity == b.polarity)
-    assert(a != b) // This should have been catched in `compare`
+    import leo.modules.myAssert
+    myAssert(a.polarity == b.polarity)
+    myAssert(a != b) // This should have been catched in `compare`
     val (al,ar) = (a.left,a.right)
     val (bl,br) = (b.left,b.right)
 
@@ -314,15 +313,24 @@ object Literal {
   /** Compare two literals of different polarity.
     * `a` must have positive polarity, `b` must have negative polarity.*/
   private final def cmpDiffPol(a: Literal, b: Literal)(sig: Signature): CMP_Result = {
-    assert(a.polarity); assert(!b.polarity)
+    import leo.modules.myAssert
+    myAssert(a.polarity); assert(!b.polarity)
     val (al,ar) = (a.left,a.right)
     val (bl,br) = (b.left,b.right)
 
+//    println(s"al: ${al.pretty(sig)}")
+//    println(s"ar: ${ar.pretty(sig)}")
+//    println(s"bl: ${bl.pretty(sig)}")
+//    println(s"br: ${br.pretty(sig)}")
+
     if (a.oriented) {
+//      println("a oriented")
       val albl = al.compareTo(bl)(sig)
+//      println(s"albl: ${Orderings.pretty(albl)}")
       if (isLE(albl)) CMP_LT
       else {
         val albr = al.compareTo(br)(sig)
+//        println(s"albr: ${Orderings.pretty(albr)}")
         if (isLE(albr)) CMP_LT
         else if (albl == CMP_GT && albr == CMP_GT) CMP_GT
         else CMP_NC
@@ -385,6 +393,8 @@ object Literal {
   final def flipPolarity(l: Literal): Literal = if (l.equational) apply(l.left, l.right, !l.polarity, l.oriented) else apply(l.left, !l.polarity)
   /** Returns the multiset of symbols occuring in the literal `l`, */
   final def symbols(l: Literal): Multiset[Signature.Key] = if (l.equational) l.left.symbols.sum(l.right.symbols) else l.left.symbols
+  /** Returns the multiset of variables occuring freely in the literal `l`, */
+  final def vars(l: Literal): Multiset[Int] = if (l.equational) l.left.vars.sum(l.right.vars) else l.left.vars
   /** Returns whether the literal is well-typed, i.e. if the underlying terms are well-typed and have the same type. */
   final def wellTyped(l: Literal): Boolean = {
     import leo.datastructures.Term.{wellTyped => wt}

@@ -470,7 +470,7 @@ object PatternUnification extends Unification {
   final def unify (vargen: FreshVarGen, t1 : Term, s1 : Term, depth: Int) : Iterable[UnificationResult] = {
     // 1. check if types are unifiable
     val t_ty = t1.ty
-    val s_ty = t1.ty
+    val s_ty = s1.ty
     val initialTypeSubst = TypeUnification(t_ty, s_ty)
     // 2. Continue only if types are unifiable
     if (initialTypeSubst.isEmpty)
@@ -493,7 +493,7 @@ object PatternUnification extends Unification {
       Iterable.empty
     else {
       val initialTypeSubst0 = initialTypeSubst.get
-      leo.Out.trace(s"initialTypeSubst0: ${initialTypeSubst0.pretty}")
+      leo.Out.finest(s"initialTypeSubst0: ${initialTypeSubst0.pretty}")
       val constraints0 = constraints.map(eq => (eq._1.substitute(Subst.id, initialTypeSubst0).etaExpand, eq._2.substitute(Subst.id, initialTypeSubst0).etaExpand))
       val unifyResult = unify0(constraints0.toVector,initialTypeSubst0, vargen)
       if (unifyResult.isDefined) Seq(unifyResult.get)
@@ -527,7 +527,7 @@ object PatternUnification extends Unification {
       else {
         val l = l0.substitute(partialUnifier, partialTyUnifier).etaExpand
         val r = r0.substitute(partialUnifier, partialTyUnifier).etaExpand
-        leo.Out.trace(s"solve: ${l.pretty} = ${r.pretty}")
+        leo.Out.finest(s"solve: ${l.pretty} = ${r.pretty}")
         // take off the lambdas
         val (leftBody, leftAbstractions) = collectLambdas(l)
         val (rightBody, rightAbstractions) = collectLambdas(r)

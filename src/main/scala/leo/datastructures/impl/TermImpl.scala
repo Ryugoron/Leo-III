@@ -3,6 +3,7 @@ package leo.datastructures.impl
 import leo.datastructures.Position.HeadPos
 import leo.datastructures.Type._
 import leo.datastructures._
+import leo.modules.myAssert
 
 import scala.annotation.tailrec
 import scala.language.implicitConversions
@@ -73,7 +74,8 @@ protected[datastructures] sealed abstract class TermImpl(protected[TermImpl] var
 
   // Other
   final lazy val symbols: Multiset[Signature.Key] = Multiset.fromMap(symbolMap.mapValues(_._1))
-
+  final lazy val vars: Multiset[Int] = vars0(0)
+  protected[impl] def vars0(depth: Int): Multiset[Int]
   // FV Indexing utility
   type Count = Int
   type Depth = Int
@@ -154,6 +156,10 @@ protected[impl] case class Root(hd: Head, args: Spine) extends TermImpl {
     case BoundType(idx) => args.tyFV + idx
     case _ => args.tyFV
   }
+  def vars0(depth: Int): Multiset[Int] = hd match {
+    case BoundIndex(_, idx) if idx > depth => args.vars0(depth) + (idx-depth)
+    case _ => args.vars0(depth)
+  }
 
   lazy val symbolMap: Map[Signature.Key, (Count, Depth)] = {
     hd match {
@@ -175,8 +181,15 @@ protected[impl] case class Root(hd: Head, args: Spine) extends TermImpl {
   lazy val feasibleOccurrences = if (args.length == 0)
     Map(this.asInstanceOf[Term] -> Set(Position.root))
   else
-    fuseMaps(Map(this.asInstanceOf[Term] -> Set(Position.root), headToTerm(hd) -> Set(Position.root.headPos)), args.feasibleOccurences)
+    fuseMaps(Map(this.asInstanceOf[Term] -> Set(Position.root)), args.feasibleOccurences)
   lazy val size = 2 + args.size
+//  def subterm(pos: Position): Term = {
+//    import leo.datastructures.Position._
+//    pos match {
+//      case Position.root => this
+//      case ArgsPos(i) => args.
+//    }
+//  }
 
   // Other operations
   lazy val etaExpand0: TermImpl = {
@@ -206,7 +219,7 @@ protected[impl] case class Root(hd: Head, args: Spine) extends TermImpl {
     else if (hd.ty.isPolyType) {
       // drop all prefix-type arguments, get rest
       val (tyArgs, restArgs) = getFirstNTyArgs(args, hd.ty.polyPrefixArgsCount)
-      assert(tyArgs.size == hd.ty.polyPrefixArgsCount)
+      myAssert(tyArgs.size == hd.ty.polyPrefixArgsCount)
       // Now do the same as above for function types, but with typeBody as functional type
       // and with restArgs as Args to count/expand
       val typeBody = hd.ty.instantiate(tyArgs)
@@ -284,7 +297,10 @@ protected[impl] case class Root(hd: Head, args: Spine) extends TermImpl {
 
   /** Pretty */
   final def pretty = s"${hd.pretty} ⋅ (${args.pretty})"
-  final def pretty(sig: Signature): String =  s"${hd.pretty(sig)} ⋅ (${args.pretty(sig)})"
+  final def pretty(sig: Signature): String = if (args == SNil)
+    s"${hd.pretty(sig)}"
+  else
+    s"${hd.pretty(sig)} ⋅ (${args.pretty(sig)})"
 }
 
 // For all terms that have not been normalized, assume they are a redex, represented
@@ -330,6 +346,8 @@ protected[impl] case class Redex(body: Term, args: Spine) extends TermImpl {
   }
   lazy val fv: Set[(Int, Type)] = body.fv union args.fv
   lazy val tyFV: Set[Int] = body.tyFV union args.tyFV
+  def vars0(depth: Int): Multiset[Int] = body.asInstanceOf[TermImpl].vars0(depth) sum args.vars0(depth)
+
   lazy val symbolMap: Map[Signature.Key, (Count, Depth)] = fuseSymbolMap(body.asInstanceOf[TermImpl].symbolMap, args.symbolMap.mapValues{case (c,d) => (c,d+1)})
   lazy val headSymbol = body.headSymbol
   lazy val headSymbolDepth = 1 + body.headSymbolDepth
@@ -408,6 +426,7 @@ protected[impl] case class TermAbstr(typ: Type, body: Term) extends TermImpl {
   lazy val ty = typ ->: body.ty
   lazy val fv: Set[(Int, Type)] = body.fv.map{case (i,t) => (i-1,t)}.filter(_._1 > 0)
   lazy val tyFV: Set[Int] = typ.typeVars.map(BoundType.unapply(_).get) union body.tyFV
+  def vars0(depth: Int): Multiset[Int] = body.asInstanceOf[TermImpl].vars0(depth+1)
   lazy val symbolMap: Map[Signature.Key, (Count, Depth)] = body.asInstanceOf[TermImpl].symbolMap.mapValues {case (c,d) => (c,d+1)}
   lazy val headSymbol = body.headSymbol
   lazy val headSymbolDepth = 1 + body.headSymbolDepth
@@ -518,6 +537,7 @@ protected[impl] case class TypeAbstr(body: Term) extends TermImpl {
   lazy val ty = ∀(body.ty)
   lazy val fv: Set[(Int, Type)] = body.fv
   lazy val tyFV: Set[Int] = body.tyFV.map(_ - 1).filter(_ > 0)
+  def vars0(depth: Int): Multiset[Int] = body.asInstanceOf[TermImpl].vars0(depth)
   lazy val symbolMap: Map[Signature.Key, (Count, Depth)] = body.asInstanceOf[TermImpl].symbolMap.mapValues {case (c,d) => (c,d+1)}
   lazy val headSymbol = body.headSymbol
   lazy val headSymbolDepth = 1 + body.headSymbolDepth
@@ -576,6 +596,7 @@ protected[impl] case class TermClos(term: Term, σ: (Subst, Subst)) extends Term
   final def ty = term.ty
   final def fv: Set[(Int, Type)] = betaNormalize.fv
   final def tyFV: Set[Int] = betaNormalize.tyFV
+  def vars0(depth: Int): Multiset[Int] = betaNormalize.asInstanceOf[TermImpl].vars0(depth)
   final def symbolMap: Map[Signature.Key, (Count, Depth)] = betaNormalize.asInstanceOf[TermImpl].symbolMap
   final def headSymbol = betaNormalize.headSymbol
   final def headSymbolDepth = 1 + term.headSymbolDepth
@@ -709,6 +730,7 @@ protected[impl] sealed abstract class Spine extends Pretty with Prettier {
   def length: Int
   def fv: Set[(Int, Type)]
   def tyFV: Set[Int]
+  def vars0(depth: Int): Multiset[Int]
   def symbolMap: Map[Signature.Key, (Int, Int)]
   def asTerms: Seq[Either[Term, Type]]
   def size: Int
@@ -758,13 +780,14 @@ protected[impl] case object SNil extends Spine {
   @inline final def δ_expand_upTo(symbs: Set[Signature.Key])(sig: Signature) = SNil
 
   // Queries
-  final val fv: Set[(Int, Type)] = Set()
-  final val tyFV: Set[Int] = Set()
+  final val fv: Set[(Int, Type)] = Set.empty
+  final val tyFV: Set[Int] = Set.empty
+  def vars0(depth: Int): Multiset[Int] = Multiset.empty
   final val symbolMap: Map[Signature.Key, (Int, Int)] = Map.empty
   final val length = 0
   final val asTerms = Vector.empty
   final val size = 1
-  final def feasibleOccurrences0(pos: Int) = Map()
+  final def feasibleOccurrences0(pos: Int) = Map.empty
 
   // Misc
   final def merge(subst: (Subst, Subst), sp: Spine, spSubst: (Subst, Subst)) = SpineClos(sp, spSubst)
@@ -823,6 +846,7 @@ protected[impl] case class App(hd: Term, tail: Spine) extends Spine {
   // Queries
   lazy val fv: Set[(Int, Type)] = hd.fv union tail.fv
   lazy val tyFV: Set[Int] = hd.tyFV union tail.tyFV
+  def vars0(depth: Int): Multiset[Int] = hd.asInstanceOf[TermImpl].vars0(depth) sum tail.vars0(depth)
   lazy val symbolMap: Map[Signature.Key, (Int, Int)] = hd.asInstanceOf[TermImpl].fuseSymbolMap(hd.asInstanceOf[TermImpl].symbolMap, tail.symbolMap)
   lazy val length = 1 + tail.length
   lazy val asTerms = Left(hd) +: tail.asTerms
@@ -892,6 +916,7 @@ protected[impl] case class TyApp(hd: Type, tail: Spine) extends Spine {
   // Queries
   lazy val fv: Set[(Int, Type)] = tail.fv
   lazy val tyFV: Set[Int] = tail.tyFV union hd.typeVars.map(BoundType.unapply(_).get)
+  def vars0(depth: Int): Multiset[Int] = tail.vars0(depth)
   lazy val symbolMap: Map[Signature.Key, (Int, Int)] = tail.symbolMap
   lazy val length = 1 + tail.length
   lazy val asTerms = Right(hd) +: tail.asTerms
@@ -956,6 +981,7 @@ protected[impl] case class SpineClos(sp: Spine, s: (Subst, Subst)) extends Spine
   // Queries
   lazy val fv: Set[(Int, Type)] = ???
   lazy val tyFV: Set[Int] = ???
+  def vars0(depth: Int): Multiset[Int] = ???
   lazy val symbolMap: Map[Signature.Key, (Int, Int)] = normalize(s._1,s._2).symbolMap
   lazy val length = sp.length
   lazy val asTerms = ???
@@ -1039,7 +1065,7 @@ object TermImpl extends TermBank {
     hd
   }
   @inline final private def mkBoundAtom1(ty: Type, scope: Int): Head = {
-    assert(boundAtoms.contains(ty))
+    myAssert(boundAtoms.contains(ty))
     val inner = boundAtoms(ty)
     val hd = BoundIndex(ty, scope)
     inner += (scope -> WeakReference(hd))
@@ -1066,7 +1092,7 @@ object TermImpl extends TermBank {
   }
   @inline final private def mkRoot1(hd: Head, args: Spine): TermImpl = {
     val root = Root(hd, args)
-    assert(roots.contains(hd))
+    myAssert(roots.contains(hd))
     val inner = roots(hd)
     inner += (args -> WeakReference(root))
     root._sharing = true
@@ -1092,7 +1118,7 @@ object TermImpl extends TermBank {
   }
   @inline final private def mkRedex1(left: Term, args: Spine): Redex = {
     val redex = Redex(left, args)
-    assert(redexes.contains(left))
+    myAssert(redexes.contains(left))
     val inner = redexes(left)
     inner += (args -> WeakReference(redex))
     redex._sharing = true
@@ -1118,7 +1144,7 @@ object TermImpl extends TermBank {
   }
   @inline final private def mkTermAbstr1(ty: Type, body: Term): TermImpl = {
     val abs = TermAbstr(ty, body)
-    assert(termAbstractions.contains(body))
+    myAssert(termAbstractions.contains(body))
     val inner = termAbstractions(body)
     inner += (ty -> WeakReference(abs))
     abs._sharing = true
@@ -1159,7 +1185,7 @@ object TermImpl extends TermBank {
   }
   @inline final private def mkSpineCons1(term: Either[Term, Type], tail: Spine): Spine = {
     val sp = if (term.isLeft) App(term.left.get, tail) else TyApp(term.right.get, tail)
-    assert(spines.contains(term))
+    myAssert(spines.contains(term))
     val inner = spines(term)
     inner += (tail -> WeakReference(sp))
     sp

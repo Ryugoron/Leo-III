@@ -244,6 +244,16 @@ object FullCNF extends CalculusRule {
     }
   } else false
 
+  final def canApply(cl: Clause): Boolean = if (Clause.empty(cl)) false
+  else {
+    val litIt = cl.lits.iterator
+    while (litIt.hasNext) {
+      val lit = litIt.next()
+      if (canApply(lit)) return true
+    }
+    false
+  }
+
   final def apply(vargen: leo.modules.calculus.FreshVarGen, cl: Clause)(implicit sig: Signature): Seq[Clause] = {
     val lits = cl.lits
     val normLits = apply(vargen, lits)
@@ -796,6 +806,11 @@ object Simp extends CalculusRule {
   final def uniLitSimp(l: Literal)(implicit sig: Signature): (TypeSubst, Seq[Literal]) = {
     assert(!l.polarity)
     val (subst, simpRes) = uniLitSimp0(Vector(), Vector((l.left, l.right)), Subst.id)(sig)
+    val simpResAsLits = simpRes.map(eq => Literal.mkNegOrdered(eq._1, eq._2)(sig))
+    (subst, simpResAsLits)
+  }
+  final def uniLitSimp(left: Term, right: Term)(implicit sig: Signature): (TypeSubst, Seq[Literal]) = {
+    val (subst, simpRes) = uniLitSimp0(Vector(), Vector((left, right)), Subst.id)(sig)
     val simpResAsLits = simpRes.map(eq => Literal.mkNegOrdered(eq._1, eq._2)(sig))
     (subst, simpResAsLits)
   }

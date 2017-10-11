@@ -10,6 +10,9 @@ package leo.datastructures
 trait Clause extends Pretty with Prettier with HasCongruence[Clause] {
   /** The underlying sequence of literals. */
   def lits: Seq[Literal]
+  /** Return the literal at index `idx`.
+    * @throws IndexOutOfBoundsException if accessed via invalid `idx`. */
+  def apply(idx: Int): Literal = lits(idx)
   /** The types of the implicitly universally quantified variables. */
   def implicitlyBound: Seq[(Int, Type)]
   def maxImplicitlyBound: Int
@@ -100,8 +103,10 @@ object Clause {
   @inline final def demodulator(c: Clause): Boolean = c.posLits.length == 1 && c.negLits.isEmpty
   /** True iff this clause is a rewrite rule. */
   @inline final def rewriteRule(c: Clause): Boolean = demodulator(c) && c.posLits.head.oriented
-  /** Returns the multiset of symbols occuring in the clause. */
+  /** Returns the multiset of symbols occurring in the clause. */
   final def symbols(c: Clause): Multiset[Signature.Key] = c.lits.map(Literal.symbols).foldLeft(Multiset.empty[Signature.Key]){case (a,b) => a.sum(b)}
+  /** Returns the multiset of variables occurring freely in the clause. */
+  final def vars(c: Clause): Multiset[Int] = c.lits.map(Literal.vars).foldLeft(Multiset.empty[Signature.Key]){case (a,b) => a.sum(b)}
   /** Returns a representation of the clause `c` as term. */
   final def asTerm(c: Clause): Term = {
     val body = mkDisjunction(c.lits.map(Literal.asTerm))

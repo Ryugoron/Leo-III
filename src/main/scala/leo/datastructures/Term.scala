@@ -41,6 +41,11 @@ trait Term extends Pretty with Prettier {
   def isBetaNormal: Boolean
   def isEtaNormal: Boolean
 
+  /** Create the term application `this @ arg`. */
+  def apply(arg: Term): Term = Term.local.mkTermApp(this, arg)
+  /** Create the term application `this @ arg1 @ args1 @ args2 .... @ argsn`. */
+  def apply(arg1: Term, args: Term*): Term = Term.local.mkTermApp(this, arg1 +: args)
+
   type Sharing = Boolean
   def sharing: Sharing
 
@@ -82,10 +87,15 @@ trait Term extends Pretty with Prettier {
   def headSymbolDepth: Int
   def size: Int
 
+//  /** Given a position `pos`, return the subterm of `this`
+//    * at `pos`, if existent. `null` otherwise. */
+//  def subterm(pos: Position): Term
+
+  /** Multiset of all symbols contained within the term. */
   def symbols: Multiset[Signature.Key]
-  final def symbolsOfType(ty: Type)(implicit sig: Signature) = {
-    symbols.filter({i => sig(i)._ty == ty})
-  }
+  /** Multiset of all free variables contained within the term. */
+  def vars: Multiset[Int]
+
   // Functions for FV-Indexing
   def fvi_symbolFreqOf(symbol: Signature.Key): Int
   def fvi_symbolDepthOf(symbol: Signature.Key): Int
@@ -163,7 +173,7 @@ object Term extends TermBank {
   final def mkApp(func: Term, args: Seq[Either[Term, Type]]): Term = TermImpl.mkApp(func, args)
 
   // Term bank method delegation
-  final val local = TermImpl.local
+  final val local: TermFactory = TermImpl.local
   final def insert(term: Term): Term = TermImpl.insert(term)
   final def reset(): Unit = TermImpl.reset()
 

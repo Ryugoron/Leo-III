@@ -45,6 +45,10 @@ package object calculus {
     /** Returns a fresh type variable represented as its loose de-bruijn index
       * wrt. the context of this generator. */
     def next(): Int
+    /** Adds `vars` to the recorded variables. Subsequent calls to
+      * methods of this variable generator will consider `vars` as already
+      * existent variables. */
+    def addVars(vars: Seq[(Int, Type)]): Unit
     /** Return all already used variables within the context of this generator.
       * The "newest" variable is the head of the list.
       * @example If `f` is a FreshVarGen for clause `cl`, then
@@ -80,6 +84,14 @@ package object calculus {
       curTy = curTy + 1
       tyVars = curTy +: tyVars
       curTy
+    }
+
+    override final def addVars(variables: Seq[(Int, Type)]): Unit = {
+      val newVars = (variables ++ vars).distinct
+      vars = newVars.sortWith { case (l,r) =>
+        l._1 > r._1
+      }
+      cur = newVars.maxBy(_._1)._1
     }
 
     override final def existingVars: Seq[(Int, Type)] = vars
@@ -152,9 +164,8 @@ package object calculus {
     } else {
       if (!mayUnify(s.ty, t.ty)) return false
     }
-    if (s.freeVars.isEmpty && t.freeVars.isEmpty) return false // contains to vars, cannot be unifiable TODO: Is this right?
+    if (s.freeVars.isEmpty && t.freeVars.isEmpty) return false // contains to vars, cannot be unifiable
     if (depth <= 0) return true
-//    if (s.headSymbol.ty != t.headSymbol.ty) return false
 
     // Match case on head symbols (over approximation):
     // flex-flex always works*, flex-rigid also works*, rigid-rigid only in same symbols
@@ -181,6 +192,7 @@ package object calculus {
     * Hence, if {{{!mayUnify(s,t)}}} the types are not unifiable, otherwise they may be. */
   @inline final def mayUnify(s: Type, t: Type): Boolean = {
     if (s == t) return true
+    if (s.typeVars.isEmpty && t.typeVars.isEmpty) return false
     import leo.datastructures.Type._
     (s,t) match {
       case (BaseType(id1), BaseType(id2)) => id1 == id2

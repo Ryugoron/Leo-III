@@ -5,6 +5,7 @@ import leo.datastructures.AnnotatedClause
 import leo.modules.output.ToTPTP
 
 import scala.collection.mutable
+import scala.ref.WeakReference
 
 /**
   * Created by lex on 8/10/17.
@@ -14,9 +15,15 @@ object Interaction {
   type Trigger = S => Boolean
   type Func = Function0[Unit]
 
+  /// private fields
+  // local organization / meta stuff
   private var sleep: Boolean = false
   private val triggers: mutable.Map[Trigger, Func] = mutable.Map.empty
-   def apply(implicit state: State[AnnotatedClause]): Unit = {
+  // actual additional payload, clauses etc.
+  protected[prover] val clauseCache: mutable.Map[Long, WeakReference[AnnotatedClause]] = mutable.Map.empty
+
+  /// methods
+  def apply(implicit state: State[AnnotatedClause]): Unit = {
      if (!Configuration.GUIDED) return
 
      checkTriggers()
@@ -31,7 +38,7 @@ object Interaction {
          else done = Evaluator(in)
        }
      }
-   }
+  }
   private def ask(): String = {
     print("> ")
     scala.io.StdIn.readLine()
@@ -53,19 +60,28 @@ object Interaction {
   def addTrigger(t: Trigger, action: Func = null): Unit = {
     triggers.+=(t -> action)
   }
+  def trackClause(cl: AnnotatedClause): Unit = {
+    if (!Configuration.GUIDED) return
+    clauseCache += (cl.id -> WeakReference(cl))
+  }
+  def trackClause(cls: Set[AnnotatedClause]): Unit = {
+    if (!Configuration.GUIDED) return
+    val it = cls.iterator
+    while (it.hasNext) {
+      trackClause(it.next())
+    }
+  }
 
-  Evaluator.register({in => in == "queues"}, { (in,state) =>
-    println(state.queues().pretty)
+  /// commands
+  Evaluator.register({in => in == "queue"}, { (_,state) =>
+    println(state.asInstanceOf[StateImpl[AnnotatedClause]].mpq.pretty)
     false
   })
-  Evaluator.register({in => in == "exit"}, { (in,state) =>
+  Evaluator.register({in => in == "exit" || in == ""}, { (_,_) =>
     true
   })
-  Evaluator.register({in => in == "kill"}, { (in,state) =>
+  Evaluator.register({in => in == "kill"}, { (_,_) =>
     System.exit(0)
-    true
-  })
-  Evaluator.register({in => in == ""}, { (in,state) =>
     true
   })
   Evaluator.register({in => in.startsWith("skip")}, { (in,state) =>
@@ -87,7 +103,7 @@ object Interaction {
   Evaluator.register({in => in.startsWith("pretty")}, { (in,state) =>
     try {
       val n = in.drop(7).toLong
-      val cl = state.clauseCache(n).get.get
+      val cl = clauseCache(n).get.get
       println(cl.pretty(state.signature))
     } catch {
       case _: Exception => println("Invalid input, try again")
@@ -97,13 +113,63 @@ object Interaction {
   Evaluator.register({in => in.startsWith("tptp")}, { (in,state) =>
     try {
       val n = in.drop(5).toLong
-      val cl = state.clauseCache(n).get.get
-      println(ToTPTP.toString(cl)(state.signature))
+      val cl = clauseCache(n).get.get
+      println(ToTPTP.withAnnotation(cl)(state.signature))
     } catch {
       case _: Exception => println("Invalid input, try again")
     }
     false
   })
+  Evaluator.register({in => in.startsWith("parents")}, { (in,state) =>
+    try {
+      val n = in.drop(8).toLong
+      val cl = clauseCache(n).get.get
+      val parents = leo.modules.proofOf(cl)
+      val parentsAsTPTP = parents.map(ToTPTP.withAnnotation(_)(state.signature))
+      println(parentsAsTPTP.mkString("\n"))
+    } catch {
+      case _: Exception => println("Invalid input, try again")
+    }
+    false
+  })
+  Evaluator.register({in => in == "peek"}, { (in,state) =>
+    try {
+      val state0 = state.asInstanceOf[StateImpl[AnnotatedClause]]
+      val cl = state0.mpq.head(state0.cur_prio)
+      println(cl.id.toString)
+    } catch {
+      case _: Exception => println("Invalid input, try again")
+    }
+    false
+  })
+  Evaluator.register({in => in.startsWith("eval")}, { (in,state) =>
+    try {
+      import leo.datastructures.ClauseProxyOrdering
+      val in0 = in.drop(5)
+      val nm = in0.split(" ")
+      val n = nm(0).toLong
+      val m = nm(1).toInt
+      val cl = clauseCache(n).get.get
+      val weight = state.asInstanceOf[StateImpl[AnnotatedClause]].mpq.priority(m).asInstanceOf[ClauseProxyOrdering[Seq[Double]]]
+      val w = weight.weightOf(cl)
+      println(w.toString)
+    } catch {
+      case _: Exception => println("Invalid input, try again")
+    }
+    false
+  })
+  Evaluator.register({in => in.startsWith("take")}, { (in,state) =>
+    try {
+      val in0 = in.drop(5)
+      val n = in0.toLong
+      val cl = clauseCache(n).get.get
+      state.addToHotList(cl)
+    } catch {
+      case _: Exception => println("Invalid input, try again")
+    }
+    false
+  })
+
 
   object Evaluator {
     type Predicate = String => Boolean

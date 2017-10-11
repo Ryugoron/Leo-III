@@ -46,7 +46,7 @@ object Main {
       if (Configuration.isSet("seq")) {
         Out.info("Running in sequential loop mode.")
         prover.SeqLoop(beginTime, Configuration.TIMEOUT)
-      } else if (Configuration.isSet("scheduled-seq")) {
+      } else if (Configuration.isSet("scheduled")) {
         Out.info("Running in scheduled sequential loop mode.")
         prover.ScheduledRun(beginTime, Configuration.TIMEOUT)
       } else if (Configuration.isSet("pure-ext")) {
@@ -112,7 +112,7 @@ object Main {
         Out.comment("OUT OF CHEESE ERROR +++ MELON MELON MELON +++ REDO FROM START")
         e match {
           case e0: SZSException =>
-            Out.output(SZSOutput(e0.status, Configuration.PROBLEMFILE,e0.toString))
+            Out.output(SZSOutput(e0.status, Configuration.PROBLEMFILE,e0.getMessage))
             Out.debug(e0.debugMessage)
           case e0: OutOfMemoryError =>
             Out.output(SZSOutput(SZS_MemoryOut, Configuration.PROBLEMFILE, e0.toString))
