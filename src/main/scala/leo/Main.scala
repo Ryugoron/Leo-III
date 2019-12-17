@@ -84,10 +84,10 @@ object Main {
             Out.output(SZSResult(SZS_MemoryOut, Configuration.PROBLEMFILE, e0.toString))
           case _ => Out.output(SZSResult(SZS_Error, Configuration.PROBLEMFILE,e.toString))
         }
-        Out.trace(stackTraceAsString(e))
+        Out.comment(stackTraceAsString(e))
         if (e.getCause != null) {
-          Out.trace("Caused by: " + e.getCause.getMessage)
-          Out.trace("at: " + e.getCause.getStackTrace.toString)
+          Out.comment("Caused by: " + e.getCause.getMessage)
+          Out.comment("at: " + e.getCause.getStackTrace.toString)
         }
       /** Handle all top-level errors END */
     } finally {

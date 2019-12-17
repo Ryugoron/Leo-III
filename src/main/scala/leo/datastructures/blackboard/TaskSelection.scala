@@ -283,7 +283,8 @@ class AuctionTaskSelection(blackboard: Blackboard, scheduler: Scheduler) extends
           }
           while (r.isEmpty) {
             val ts = taskSet.executableTasks
-            ts.foreach { t =>
+            while(ts.hasNext){
+              val t = ts.next
               val a = t.getAgent
               val budget = regAgents.getOrElse(a, 0.0)
               r = (t.bid * budget, a, t) :: r
@@ -352,6 +353,6 @@ class AuctionTaskSelection(blackboard: Blackboard, scheduler: Scheduler) extends
     Nil
   }
 
-  override def info(): Unit = ???
+  override def info(): Unit = {}
 }
 
