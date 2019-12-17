@@ -1,4 +1,4 @@
-import scala.sys.process._
+import scala.sys.process.{Process => SProcess}
 
 val buildParser = taskKey[Unit]("Run ANTLR parser generation.")
 val antlrFile = settingKey[File]("The path to the ANTLR grammar file for Leo's parser.")
@@ -25,7 +25,7 @@ lazy val leo = (project in file(".")).
     mainClass in (Compile, run) := Some("leo.Main"),
     mainClass in assembly := Some("leo.Main"),
     mainClass in (Compile, packageBin) := Some("leo.Main"),
-    // set stack size to 4m 
+    // set stack size to 4m
     javaOptions += "-Xss4m",
     parallelExecution in Test := false,
     assemblyJarName in assembly := "leo3.jar",
@@ -44,10 +44,10 @@ lazy val leo = (project in file(".")).
           val args: Seq[String] = Seq("-cp", Path.makeString(Seq(unmanagedBase.value / "antlr-4.7.2-complete.jar")),
             "org.antlr.v4.Tool",
             "-o", target.toString) ++ in.map(_.toString)
-          val exitCode = Process("java", args) ! log
+          val exitCode = SProcess("java", args) ! log
           if (exitCode != 0) sys.error(s"ANTLR build failed") else println("successful!")
           print("Cleaning temporary files ...")
-          val exitCode2 = Process("rm", Seq((target / "tptp.tokens").toString, (target / "tptpLexer.tokens").toString)) ! log 
+          val exitCode2 = SProcess("rm", Seq((target / "tptp.tokens").toString, (target / "tptpLexer.tokens").toString)) ! log
           if (exitCode2 != 0) println("cleanup failed.") else println("done!")
           (target ** "*.java").get.toSet
       }
@@ -76,4 +76,3 @@ def assemblyCommand(name: String, level: Int) =
   }
 commands += assemblyCommand("debug", 0)
 //commands += compileCommand("prod", 1000)
-
